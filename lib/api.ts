@@ -158,26 +158,51 @@ async function handle<T>(res: Response): Promise<T> {
 
 export const zohoLoginUrl = `${API_URL}/auth/zoho`;
 
+const TOKEN_KEY = "vieplanner_token";
+
+// Frontend (Vercel) và backend (Render) khác domain nhau nên không dùng
+// cookie được (bị trình duyệt chặn cookie cross-site trên nhiều máy/trình
+// duyệt) — lưu token đăng nhập vào localStorage và gửi qua header Authorization.
+export function saveToken(token: string): void {
+  if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function clearToken(): void {
+  if (typeof window !== "undefined") localStorage.removeItem(TOKEN_KEY);
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export async function fetchMe(): Promise<User | null> {
-  const res = await fetch(`${API_URL}/api/me`, { credentials: "include", cache: "no-store" });
+  if (!getToken()) return null;
+  const res = await fetch(`${API_URL}/api/me`, { headers: authHeaders(), cache: "no-store" });
   if (res.status === 401) return null;
   return handle(res);
 }
 
 export async function logout(): Promise<void> {
-  await fetch(`${API_URL}/auth/logout`, { method: "POST", credentials: "include" });
+  clearToken();
+  await fetch(`${API_URL}/auth/logout`, { method: "POST" });
 }
 
 export async function fetchIdeas(month?: string): Promise<Idea[]> {
   const q = month ? `?month=${month}` : "";
   return handle(
-    await fetch(`${API_URL}/api/ideas${q}`, { cache: "no-store", credentials: "include" })
+    await fetch(`${API_URL}/api/ideas${q}`, { cache: "no-store", headers: authHeaders() })
   );
 }
 
 export async function fetchCategories(): Promise<Category[]> {
   return handle(
-    await fetch(`${API_URL}/api/categories`, { cache: "no-store", credentials: "include" })
+    await fetch(`${API_URL}/api/categories`, { cache: "no-store", headers: authHeaders() })
   );
 }
 
@@ -185,8 +210,7 @@ export async function createIdea(data: Partial<IdeaInput>): Promise<Idea> {
   return handle(
     await fetch(`${API_URL}/api/ideas`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(data),
     })
   );
@@ -196,8 +220,7 @@ export async function updateIdea(id: number, data: Partial<IdeaInput>): Promise<
   return handle(
     await fetch(`${API_URL}/api/ideas/${id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(data),
     })
   );
@@ -205,7 +228,7 @@ export async function updateIdea(id: number, data: Partial<IdeaInput>): Promise<
 
 export async function deleteIdea(id: number): Promise<void> {
   await handle(
-    await fetch(`${API_URL}/api/ideas/${id}`, { method: "DELETE", credentials: "include" })
+    await fetch(`${API_URL}/api/ideas/${id}`, { method: "DELETE", headers: authHeaders() })
   );
 }
 
@@ -222,7 +245,7 @@ export async function uploadAssets(
   return handle(
     await fetch(`${API_URL}/api/ideas/${ideaId}/assets`, {
       method: "POST",
-      credentials: "include",
+      headers: authHeaders(),
       body: fd,
     })
   );
@@ -230,19 +253,19 @@ export async function uploadAssets(
 
 export async function deleteAsset(id: number): Promise<void> {
   await handle(
-    await fetch(`${API_URL}/api/assets/${id}`, { method: "DELETE", credentials: "include" })
+    await fetch(`${API_URL}/api/assets/${id}`, { method: "DELETE", headers: authHeaders() })
   );
 }
 
 export async function fetchSocialStatus(): Promise<SocialStatus> {
   return handle(
-    await fetch(`${API_URL}/api/social/status`, { cache: "no-store", credentials: "include" })
+    await fetch(`${API_URL}/api/social/status`, { cache: "no-store", headers: authHeaders() })
   );
 }
 
 export async function fetchSocialAccounts(): Promise<SocialAccounts> {
   return handle(
-    await fetch(`${API_URL}/api/social/accounts`, { cache: "no-store", credentials: "include" })
+    await fetch(`${API_URL}/api/social/accounts`, { cache: "no-store", headers: authHeaders() })
   );
 }
 
@@ -250,7 +273,7 @@ export async function publishIdea(id: number, platform: SocialPlatform): Promise
   return handle(
     await fetch(`${API_URL}/api/ideas/${id}/publish/${platform}`, {
       method: "POST",
-      credentials: "include",
+      headers: authHeaders(),
     })
   );
 }

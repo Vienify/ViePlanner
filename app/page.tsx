@@ -21,6 +21,7 @@ import {
   fetchMe,
   formatDateVN,
   logout,
+  saveToken,
   weekdayVN,
 } from "@/lib/api";
 import CalendarView from "@/components/CalendarView";
@@ -99,6 +100,15 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // Sau khi đăng nhập Zoho, backend redirect về đây kèm ?token=... (vì
+    // frontend/backend khác domain nên không dùng cookie được) — lưu token
+    // vào localStorage rồi xoá khỏi URL.
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    if (token) {
+      saveToken(token);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
     fetchMe().then((me) => {
       if (!me) {
         router.replace("/login");
