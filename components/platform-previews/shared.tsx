@@ -87,14 +87,18 @@ export function Media({
   );
 }
 
-export function Avatar({ dark = false }: { dark?: boolean }) {
+export function Avatar({ dark = false, src, name }: { dark?: boolean; src?: string | null; name?: string }) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />;
+  }
   return (
     <div
       className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
         dark ? "bg-gradient-to-br from-zinc-500 to-zinc-700" : "bg-gradient-to-br from-indigo-500 to-purple-600"
       }`}
     >
-      K
+      {(name?.trim()?.[0] || "K").toUpperCase()}
     </div>
   );
 }

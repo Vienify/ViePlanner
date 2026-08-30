@@ -62,6 +62,7 @@ export interface SocialAccountInfo {
   configured: boolean;
   name?: string;
   url?: string;
+  avatar?: string | null;
   tokenExpiresAt?: string | null;
   error?: string;
 }

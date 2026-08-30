@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, Loader2, Moon, Sun } from "lucide-react";
-import { Asset, Idea } from "@/lib/api";
+import { Asset, fetchSocialAccounts, Idea, SocialAccounts } from "@/lib/api";
 import { FacebookPreview } from "./FacebookPreview";
 import { InstagramPreview } from "./InstagramPreview";
 import { ThreadsPreview } from "./ThreadsPreview";
@@ -27,6 +27,14 @@ export function PlatformDemo({
 }) {
   const [platform, setPlatform] = useState<Platform>("facebook");
   const [theme, setTheme] = useState<Theme>("light");
+  const [accounts, setAccounts] = useState<SocialAccounts | null>(null);
+
+  // Lấy tên + ảnh đại diện thật của trang/tài khoản đã kết nối để demo giống trang thật.
+  useEffect(() => {
+    fetchSocialAccounts()
+      .then(setAccounts)
+      .catch(() => setAccounts(null));
+  }, []);
 
   const demos = assets.filter((a) => a.kind === "demo");
   const fbImages = assets.filter((a) => a.kind === "image" && a.platform === "fb");
@@ -87,13 +95,13 @@ export function PlatformDemo({
       </div>
       <div className={`grid grid-cols-1 rounded-2xl p-4 sm:p-6 ${theme === "dark" ? "bg-zinc-950" : "bg-zinc-200/60"}`}>
         <div className={`col-start-1 row-start-1 ${platform === "facebook" ? "visible" : "invisible pointer-events-none"}`}>
-          <FacebookPreview idea={idea} media={fbMedia} theme={theme} />
+          <FacebookPreview idea={idea} media={fbMedia} theme={theme} account={accounts?.facebook} />
         </div>
         <div className={`col-start-1 row-start-1 ${platform === "instagram" ? "visible" : "invisible pointer-events-none"}`}>
-          <InstagramPreview idea={idea} media={igThreadsMedia} theme={theme} />
+          <InstagramPreview idea={idea} media={igThreadsMedia} theme={theme} account={accounts?.instagram} />
         </div>
         <div className={`col-start-1 row-start-1 ${platform === "threads" ? "visible" : "invisible pointer-events-none"}`}>
-          <ThreadsPreview idea={idea} media={igThreadsMedia} theme={theme} />
+          <ThreadsPreview idea={idea} media={igThreadsMedia} theme={theme} account={accounts?.threads} />
         </div>
       </div>
     </div>

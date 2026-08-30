@@ -1,12 +1,23 @@
 "use client";
 
 import { Forward, Globe, Heart, MessageCircle, MoreHorizontal, ThumbsUp } from "lucide-react";
-import { Asset, Idea, formatDateVN } from "@/lib/api";
+import { Asset, Idea, SocialAccountInfo, formatDateVN } from "@/lib/api";
 import { ImageGrid } from "./ImageGrid";
 import { Avatar, CHANNEL_NAME, Theme, TruncatedCaption } from "./shared";
 
-export function FacebookPreview({ idea, media, theme }: { idea: Idea; media: Asset[]; theme: Theme }) {
+export function FacebookPreview({
+  idea,
+  media,
+  theme,
+  account,
+}: {
+  idea: Idea;
+  media: Asset[];
+  theme: Theme;
+  account?: SocialAccountInfo;
+}) {
   const dark = theme === "dark";
+  const name = account?.configured && account.name ? account.name : CHANNEL_NAME;
   return (
     <div
       className={`mx-auto max-h-[62vh] max-w-md overflow-y-auto overflow-x-hidden rounded-xl border shadow ${
@@ -14,9 +25,9 @@ export function FacebookPreview({ idea, media, theme }: { idea: Idea; media: Ass
       }`}
     >
       <div className="flex items-center gap-3 px-4 py-3">
-        <Avatar dark={dark} />
+        <Avatar dark={dark} src={account?.avatar || "/FBLogo.jpg"} name={name} />
         <div>
-          <p className="text-sm font-semibold">{CHANNEL_NAME}</p>
+          <p className="text-sm font-semibold">{name}</p>
           <p className={`flex items-center gap-1 text-xs ${dark ? "text-zinc-400" : "text-zinc-500"}`}>
             {formatDateVN(idea.post_date)} lúc {idea.time_fb || "--:--"} ·
             <Globe className="h-3 w-3" />
