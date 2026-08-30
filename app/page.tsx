@@ -17,6 +17,7 @@ import {
   STATUS_LABELS,
   User,
   deleteIdea,
+  fetchIdea,
   fetchIdeas,
   fetchMe,
   formatDateVN,
@@ -29,6 +30,7 @@ import TableView from "@/components/TableView";
 import IdeaForm from "@/components/IdeaForm";
 import PreviewModal from "@/components/PreviewModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import NotificationBell from "@/components/NotificationBell";
 import { SiFacebook, SiInstagram, SiThreads } from "react-icons/si";
 
 type ViewMode = "calendar" | "table";
@@ -131,6 +133,20 @@ export default function Home() {
     router.replace("/login");
   }
 
+  async function openIdeaById(ideaId: number) {
+    const existing = ideas.find((i) => i.id === ideaId);
+    if (existing) {
+      setPreview(existing);
+      return;
+    }
+    try {
+      const idea = await fetchIdea(ideaId);
+      setPreview(idea);
+    } catch {
+      // Ý tưởng có thể đã bị xoá
+    }
+  }
+
   function openAdd(date?: string) {
     setEditing(null);
     setFormMode("idea");
@@ -190,6 +206,7 @@ export default function Home() {
             </span>
           </h1>
           <div className="ml-auto flex items-center gap-3">
+            <NotificationBell onOpenIdea={openIdeaById} />
             <button
               onClick={() => router.push("/settings")}
               title="Cài đặt tài khoản"
@@ -352,6 +369,15 @@ export default function Home() {
           onSaved={() => {
             load();
             loadTomorrow();
+          }}
+          onSavedContent={async (id) => {
+            setShowForm(false);
+            try {
+              const fresh = await fetchIdea(id);
+              setPreview(fresh);
+            } catch {
+              // Ý tưởng có thể đã bị xoá
+            }
           }}
         />
       )}

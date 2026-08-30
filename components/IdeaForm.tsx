@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CalendarDays, Clock, ImagePlus, Lightbulb, MonitorPlay, Paperclip, Pencil, PenLine, Sparkles, Tag, X } from "lucide-react";
+import { SiFacebook, SiInstagram, SiThreads } from "react-icons/si";
 import {
   Asset,
   AssetKind,
@@ -21,15 +22,122 @@ import {
 } from "@/lib/api";
 import { PlatformDemo } from "@/components/platform-previews/PlatformDemo";
 
+const TIME_FIELDS: { key: "time_fb" | "time_ig" | "time_threads"; label: string; platform: "facebook" | "instagram" | "threads" }[] = [
+  { key: "time_fb", label: "Facebook", platform: "facebook" },
+  { key: "time_ig", label: "Instagram", platform: "instagram" },
+  { key: "time_threads", label: "Threads", platform: "threads" },
+];
+
+function TimePlatformIcon({ platform }: { platform: "facebook" | "instagram" | "threads" }): ReactNode {
+  if (platform === "facebook") return <SiFacebook className="h-4 w-4 shrink-0 text-[#1877F2]" />;
+  if (platform === "instagram")
+    return (
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[22%] bg-gradient-to-br from-[#f09433] via-[#dc2743] to-[#bc1888]">
+        <SiInstagram className="h-[70%] w-[70%] text-white" />
+      </span>
+    );
+  return (
+    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-black">
+      <SiThreads className="h-[70%] w-[70%] text-white" />
+    </span>
+  );
+}
+
+// Ô nhập giờ dạng HH:MM tự viết (thay cho <input type="time"> mặc định của trình duyệt) để:
+// - Tự nhảy từ giờ sang phút khi gõ đủ 2 số, rồi nhảy sang nền tảng kế tiếp khi gõ xong phút.
+// - Nếu chỉ nhập giờ rồi rời khỏi ô (blur/tab), tự hiểu phút là "00".
+function TimeHM({
+  value,
+  onChange,
+  hourRef,
+  onComplete,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  hourRef?: (el: HTMLInputElement | null) => void;
+  onComplete?: () => void;
+}) {
+  const [h, setH] = useState(() => value.split(":")[0] || "");
+  const [m, setM] = useState(() => value.split(":")[1] || "");
+  const minuteRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setH(value.split(":")[0] || "");
+    setM(value.split(":")[1] || "");
+  }, [value]);
+
+  function commit(nh: string, nm: string) {
+    if (nh && nm) onChange(`${nh}:${nm}`);
+    else if (!nh && !nm) onChange("");
+  }
+
+  function finalize(nh: string, nm: string) {
+    let fh = nh;
+    let fm = nm;
+    if (fh.length === 1) fh = fh.padStart(2, "0");
+    if (fh && !fm) fm = "00";
+    else if (fm.length === 1) fm = fm.padStart(2, "0");
+    if (fh !== nh) setH(fh);
+    if (fm !== nm) setM(fm);
+    commit(fh, fm);
+  }
+
+  return (
+    <span className="flex items-center gap-0.5 text-sm tabular-nums text-zinc-800">
+      <input
+        ref={hourRef}
+        type="text"
+        inputMode="numeric"
+        placeholder="--"
+        maxLength={2}
+        value={h}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+          const clamped = digits.length === 2 && Number(digits) > 23 ? "23" : digits;
+          setH(clamped);
+          commit(clamped, m);
+          if (clamped.length === 2) {
+            minuteRef.current?.focus();
+            minuteRef.current?.select();
+          }
+        }}
+        onBlur={() => finalize(h, m)}
+        className="w-5 border-none bg-transparent p-0 text-right focus:outline-none focus:ring-0"
+      />
+      <span className="text-zinc-400">:</span>
+      <input
+        ref={minuteRef}
+        type="text"
+        inputMode="numeric"
+        placeholder="--"
+        maxLength={2}
+        value={m}
+        onFocus={(e) => e.target.select()}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
+          const clamped = digits.length === 2 && Number(digits) > 59 ? "59" : digits;
+          setM(clamped);
+          commit(h, clamped);
+          if (clamped.length === 2) onComplete?.();
+        }}
+        onBlur={() => finalize(h, m)}
+        className="w-5 border-none bg-transparent p-0 focus:outline-none focus:ring-0"
+      />
+    </span>
+  );
+}
+
 interface Props {
   idea?: Idea | null; // null = tạo mới
   defaultDate?: string;
   initialMode?: "idea" | "content"; // chỉ áp dụng khi đang sửa ý tưởng có sẵn
   onClose: () => void;
   onSaved: () => void;
+  onSavedContent?: (ideaId: number) => void;
 }
 
-export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSaved }: Props) {
+export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSaved, onSavedContent }: Props) {
   const [mode, setMode] = useState<"idea" | "content">(initialMode || (idea ? "content" : "idea"));
   const [form, setForm] = useState<IdeaInput>({
     post_date: idea?.post_date || defaultDate || new Date().toLocaleDateString("sv-SE"),
@@ -67,7 +175,7 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
     }
     const t = setTimeout(() => {
       setAutoSaving(true);
-      updateIdea(savedId, form)
+      updateIdea(savedId, form, { silent: true })
         .then(() => onSaved())
         .catch(() => {})
         .finally(() => setAutoSaving(false));
@@ -78,11 +186,13 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
 
   const set = (k: keyof IdeaInput) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
+  const setTimeValue = (k: "time_fb" | "time_ig" | "time_threads", v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const timeHourRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  async function ensureSaved(overrideForm?: IdeaInput): Promise<number> {
+  async function ensureSaved(overrideForm?: IdeaInput, options?: { silent?: boolean }): Promise<number> {
     const payload = overrideForm ?? form;
     if (savedId) {
-      await updateIdea(savedId, payload);
+      await updateIdea(savedId, payload, options?.silent ? { silent: true } : undefined);
       return savedId;
     }
     const created = await createIdea(payload);
@@ -91,13 +201,18 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
   }
 
   async function handleSave() {
+    if (saving) return;
     setSaving(true);
     setError("");
     try {
       // Lưu nội dung không tự đổi trạng thái — trạng thái "Chờ đăng" chỉ được xác nhận qua nút "Sẵn sàng đăng" ở màn xem trước.
-      await ensureSaved(form);
+      const id = await ensureSaved(form);
       onSaved();
-      onClose();
+      if (onSavedContent) {
+        onSavedContent(id);
+      } else {
+        onClose();
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Có lỗi xảy ra");
     } finally {
@@ -110,7 +225,7 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
     setUploading(true);
     setError("");
     try {
-      const id = await ensureSaved();
+      const id = await ensureSaved(undefined, { silent: true });
       const added = await uploadAssets(id, files, kind, platform);
       setAssets((a) => [...a, ...added]);
       onSaved();
@@ -221,21 +336,24 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
               <label className={labelCls}>
                 <Clock className="h-3.5 w-3.5" /> Giờ đăng theo từng nền tảng
               </label>
-              <div className="grid grid-cols-3 gap-4">
-                <input type="time" value={form.time_fb} onChange={set("time_fb")} className={inputCls} title="Giờ đăng Facebook" />
-                <input type="time" value={form.time_ig} onChange={set("time_ig")} className={inputCls} title="Giờ đăng Instagram" />
-                <input
-                  type="time"
-                  value={form.time_threads}
-                  onChange={set("time_threads")}
-                  className={inputCls}
-                  title="Giờ đăng Threads"
-                />
-              </div>
-              <div className="mt-1 grid grid-cols-3 gap-4 text-center text-[11px] text-zinc-400">
-                <span>Facebook</span>
-                <span>Instagram</span>
-                <span>Threads</span>
+              <div className="grid grid-cols-3 gap-3">
+                {TIME_FIELDS.map((p, idx) => (
+                  <div
+                    key={p.key}
+                    className="flex items-center justify-between gap-2 rounded-lg border border-zinc-300 px-3 py-2 focus-within:border-zinc-900 focus-within:ring-1 focus-within:ring-zinc-900"
+                  >
+                    <span className="flex items-center gap-1.5 text-sm text-zinc-600">
+                      <TimePlatformIcon platform={p.platform} />
+                      {p.label}
+                    </span>
+                    <TimeHM
+                      value={form[p.key]}
+                      onChange={(v) => setTimeValue(p.key, v)}
+                      hourRef={(el) => (timeHourRefs.current[idx] = el)}
+                      onComplete={() => timeHourRefs.current[idx + 1]?.focus()}
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           </div>

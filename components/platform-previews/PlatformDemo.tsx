@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { CheckCircle2, Loader2, Moon, Sun } from "lucide-react";
 import { Asset, fetchSocialAccounts, Idea, SocialAccounts } from "@/lib/api";
 import { FacebookPreview } from "./FacebookPreview";
@@ -17,6 +17,7 @@ export function PlatformDemo({
   isReady,
   marking,
   onMarkReady,
+  publishSlot,
 }: {
   idea: Idea;
   assets: Asset[];
@@ -24,6 +25,7 @@ export function PlatformDemo({
   isReady?: boolean;
   marking?: boolean;
   onMarkReady?: () => void;
+  publishSlot?: ReactNode;
 }) {
   const [platform, setPlatform] = useState<Platform>("facebook");
   const [theme, setTheme] = useState<Theme>("light");
@@ -49,7 +51,7 @@ export function PlatformDemo({
 
   return (
     <div>
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="relative mb-3 flex flex-wrap items-center gap-2 overflow-hidden">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -83,6 +85,7 @@ export function PlatformDemo({
               Sẵn sàng đăng
             </button>
           )}
+          {publishSlot}
           <button
             type="button"
             onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}

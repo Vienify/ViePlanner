@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, Pencil, PenLine, Send, X } from "lucide-react";
+import { AlertCircle, Clock, Loader2, Pencil, PenLine, Send, X } from "lucide-react";
+import { SiFacebook, SiInstagram, SiThreads } from "react-icons/si";
 import {
   Idea,
   POST_FORMAT_ICONS,
@@ -38,6 +39,21 @@ const PLATFORM_POST_ID_KEY = {
   threads: "threads_post_id",
 } as const;
 
+function PlatformIcon({ platform }: { platform: SocialPlatform }) {
+  if (platform === "facebook") return <SiFacebook className="h-4 w-4 shrink-0 text-[#1877F2]" />;
+  if (platform === "instagram")
+    return (
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[22%] bg-gradient-to-br from-[#f09433] via-[#dc2743] to-[#bc1888]">
+        <SiInstagram className="h-[70%] w-[70%] text-white" />
+      </span>
+    );
+  return (
+    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-black">
+      <SiThreads className="h-[70%] w-[70%] text-white" />
+    </span>
+  );
+}
+
 export default function PreviewModal({ idea, onClose, onEdit, onUpdated }: Props) {
   const StatusIcon = STATUS_ICONS[idea.status];
   const FormatIcon = POST_FORMAT_ICONS[idea.post_format];
@@ -49,6 +65,7 @@ export default function PreviewModal({ idea, onClose, onEdit, onUpdated }: Props
   const [publishError, setPublishError] = useState<{ platform: SocialPlatform; message: string } | null>(null);
   const [markingReady, setMarkingReady] = useState(false);
   const [readyError, setReadyError] = useState("");
+  const [showPublish, setShowPublish] = useState(false);
 
   const assets = idea.assets || [];
   const hasImages =
@@ -137,55 +154,29 @@ export default function PreviewModal({ idea, onClose, onEdit, onUpdated }: Props
           </div>
         </div>
 
-        <div className="mb-3 grid grid-cols-1 gap-2 rounded-xl bg-white p-3 text-sm shadow-sm sm:grid-cols-3">
-          <p><span className="font-semibold text-zinc-900">Giờ FB:</span> {idea.time_fb || "—"}</p>
-          <p><span className="font-semibold text-zinc-900">Giờ IG:</span> {idea.time_ig || "—"}</p>
-          <p><span className="font-semibold text-zinc-900">Giờ Threads:</span> {idea.time_threads || "—"}</p>
-        </div>
-
-        {hasContent && (
-          <div className="mb-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
-            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-              <Send className="h-3.5 w-3.5" /> Đăng bài
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {(Object.keys(PLATFORM_LABELS) as SocialPlatform[]).map((platform) => {
-                const postId = idea[PLATFORM_POST_ID_KEY[platform]];
-                const configured = socialStatus?.[platform] ?? false;
-                const isLoading = publishing === platform;
-                const label = PLATFORM_LABELS[platform];
-                if (postId) {
-                  return (
-                    <span
-                      key={platform}
-                      className="flex items-center gap-1.5 rounded-lg border border-emerald-400 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700"
-                    >
-                      <CheckCircle2 className="h-4 w-4" /> Đã đăng {label}
-                    </span>
-                  );
-                }
-                return (
-                  <button
-                    key={platform}
-                    disabled={!configured || isLoading}
-                    onClick={() => handlePublish(platform)}
-                    title={configured ? undefined : `Chưa cấu hình ${label} trong backend/.env`}
-                    className="flex items-center gap-1.5 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
-                  >
-                    {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                    Đăng lên {label}
-                  </button>
-                );
-              })}
+        <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {(
+            [
+              { platform: "facebook", label: "Facebook", time: idea.time_fb },
+              { platform: "instagram", label: "Instagram", time: idea.time_ig },
+              { platform: "threads", label: "Threads", time: idea.time_threads },
+            ] as { platform: SocialPlatform; label: string; time: string | null | undefined }[]
+          ).map((row) => (
+            <div
+              key={row.platform}
+              className="flex items-center gap-2.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 shadow-sm"
+            >
+              <PlatformIcon platform={row.platform} />
+              <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                <p className="text-sm text-zinc-500">{row.label}</p>
+                <p className="flex items-center gap-1 text-sm font-semibold text-zinc-800">
+                  <Clock className="h-3.5 w-3.5 text-zinc-400" />
+                  {row.time || "—"}
+                </p>
+              </div>
             </div>
-            {publishError && (
-              <p className="mt-2 flex items-start gap-1.5 text-sm text-red-600">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                {PLATFORM_LABELS[publishError.platform]}: {publishError.message}
-              </p>
-            )}
-          </div>
-        )}
+          ))}
+        </div>
 
         {hasContent ? (
           <>
@@ -202,7 +193,68 @@ export default function PreviewModal({ idea, onClose, onEdit, onUpdated }: Props
               isReady={isReady}
               marking={markingReady}
               onMarkReady={handleMarkReady}
+              publishSlot={
+                <>
+                  {!showPublish && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPublish(true)}
+                      className="flex items-center gap-1.5 rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700"
+                    >
+                      <Send className="h-4 w-4" /> Đăng ngay
+                    </button>
+                  )}
+                  <div
+                    className={`absolute inset-0 z-10 flex items-center justify-end gap-2 bg-zinc-50 pl-2 transition-transform duration-300 ease-out ${
+                      showPublish ? "translate-x-0" : "pointer-events-none translate-x-full"
+                    }`}
+                  >
+                    {(Object.keys(PLATFORM_LABELS) as SocialPlatform[]).map((platform) => {
+                      const postId = idea[PLATFORM_POST_ID_KEY[platform]];
+                      const configured = socialStatus?.[platform] ?? false;
+                      const isLoading = publishing === platform;
+                      const label = PLATFORM_LABELS[platform];
+                      if (postId) {
+                        return (
+                          <span
+                            key={platform}
+                            className="flex items-center gap-1.5 rounded-full border border-emerald-400 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700"
+                          >
+                            <PlatformIcon platform={platform} /> Đã đăng {label}
+                          </span>
+                        );
+                      }
+                      return (
+                        <button
+                          key={platform}
+                          disabled={!configured || isLoading}
+                          onClick={() => handlePublish(platform)}
+                          title={configured ? undefined : `Chưa cấu hình ${label} trong backend/.env`}
+                          className="flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                        >
+                          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlatformIcon platform={platform} />}
+                          Đăng lên {label}
+                        </button>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setShowPublish(false)}
+                      title="Đóng"
+                      className="flex items-center justify-center rounded-full p-1.5 text-zinc-500 transition hover:bg-zinc-200/70"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                  </div>
+                </>
+              }
             />
+            {publishError && (
+              <p className="mt-2 flex items-start gap-1.5 text-sm text-red-600">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                {PLATFORM_LABELS[publishError.platform]}: {publishError.message}
+              </p>
+            )}
           </>
         ) : (
           <div className="space-y-3">

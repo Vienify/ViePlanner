@@ -90,6 +90,17 @@ export interface Category {
   name: string;
 }
 
+export type NotificationType = "login" | "idea_create" | "idea_update" | "idea_ready" | "idea_delete" | "idea_publish";
+
+export interface AppNotification {
+  id: number;
+  type: NotificationType;
+  message: string;
+  idea_id: number | null;
+  actor_name: string | null;
+  created_at: string;
+}
+
 export const STATUS_LABELS: Record<IdeaStatus, string> = {
   idea: "Lên ý tưởng",
   scheduled: "Chờ đăng",
@@ -139,6 +150,7 @@ export function formatDateVN(dateStr: string): string {
 }
 
 export function assetUrl(a: Asset): string {
+  if (/^https?:\/\//i.test(a.file_path)) return a.file_path;
   return `${API_URL}${a.file_path}`;
 }
 
@@ -200,6 +212,26 @@ export async function fetchIdeas(month?: string): Promise<Idea[]> {
   );
 }
 
+export async function fetchIdea(id: number): Promise<Idea> {
+  return handle(
+    await fetch(`${API_URL}/api/ideas/${id}`, { cache: "no-store", headers: authHeaders() })
+  );
+}
+
+export async function fetchNotifications(): Promise<AppNotification[]> {
+  return handle(
+    await fetch(`${API_URL}/api/notifications`, { cache: "no-store", headers: authHeaders() })
+  );
+}
+
+export const NOTIFICATIONS_CHANGED_EVENT = "vieplanner:notifications-changed";
+
+function broadcastNotificationsChanged(): void {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED_EVENT));
+  }
+}
+
 export async function fetchCategories(): Promise<Category[]> {
   return handle(
     await fetch(`${API_URL}/api/categories`, { cache: "no-store", headers: authHeaders() })
@@ -207,29 +239,41 @@ export async function fetchCategories(): Promise<Category[]> {
 }
 
 export async function createIdea(data: Partial<IdeaInput>): Promise<Idea> {
-  return handle(
+  const idea = await handle<Idea>(
     await fetch(`${API_URL}/api/ideas`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(data),
     })
   );
+  broadcastNotificationsChanged();
+  return idea;
 }
 
-export async function updateIdea(id: number, data: Partial<IdeaInput>): Promise<Idea> {
-  return handle(
-    await fetch(`${API_URL}/api/ideas/${id}`, {
+export async function updateIdea(
+  id: number,
+  data: Partial<IdeaInput>,
+  options?: { silent?: boolean }
+): Promise<Idea> {
+  const url = options?.silent
+    ? `${API_URL}/api/ideas/${id}?silent=1`
+    : `${API_URL}/api/ideas/${id}`;
+  const idea = await handle<Idea>(
+    await fetch(url, {
       method: "PUT",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify(data),
     })
   );
+  if (!options?.silent) broadcastNotificationsChanged();
+  return idea;
 }
 
 export async function deleteIdea(id: number): Promise<void> {
   await handle(
     await fetch(`${API_URL}/api/ideas/${id}`, { method: "DELETE", headers: authHeaders() })
   );
+  broadcastNotificationsChanged();
 }
 
 export async function uploadAssets(
