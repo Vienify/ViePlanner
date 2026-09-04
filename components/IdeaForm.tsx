@@ -46,6 +46,14 @@ function TimePlatformIcon({ platform }: { platform: "facebook" | "instagram" | "
 // Ô nhập giờ dạng HH:MM tự viết (thay cho <input type="time"> mặc định của trình duyệt) để:
 // - Tự nhảy từ giờ sang phút khi gõ đủ 2 số, rồi nhảy sang nền tảng kế tiếp khi gõ xong phút.
 // - Nếu chỉ nhập giờ rồi rời khỏi ô (blur/tab), tự hiểu phút là "00".
+// - Cho phép dán (paste) một chuỗi giờ đầy đủ (VD "14:30", "1430") vào 1 trong 2 ô.
+//
+// Lưu ý kỹ thuật: khi gõ xong giờ (2 số) ta gọi minuteRef.current?.focus() để nhảy ô —
+// việc focus() này kích hoạt sự kiện blur đồng bộ trên ô giờ NGAY LẬP TỨC, tức là trước khi
+// React kịp render lại với giá trị "h" mới vừa setH(). Nếu để onBlur luôn chạy finalize(h, m)
+// thì nó sẽ đọc closure "h/m" CŨ (trước khi gõ số thứ 2) và ghi đè mất giá trị vừa nhập —
+// đây chính là lý do các giờ 2 chữ số (10-23) bị "nuốt" mất chữ số thứ 2. Dùng cờ
+// skipNextBlur để bỏ qua đúng 1 lần finalize khi blur đó là do chính ta chủ động focus() sang.
 function TimeHM({
   value,
   onChange,
@@ -60,6 +68,7 @@ function TimeHM({
   const [h, setH] = useState(() => value.split(":")[0] || "");
   const [m, setM] = useState(() => value.split(":")[1] || "");
   const minuteRef = useRef<HTMLInputElement>(null);
+  const skipNextBlur = useRef(false);
 
   useEffect(() => {
     setH(value.split(":")[0] || "");
@@ -82,6 +91,45 @@ function TimeHM({
     commit(fh, fm);
   }
 
+  function handleBlur() {
+    if (skipNextBlur.current) {
+      skipNextBlur.current = false;
+      return;
+    }
+    finalize(h, m);
+  }
+
+  // Nhận diện chuỗi giờ dán vào, hỗ trợ "14:30", "14.30", "14h30", "1430", "430".
+  function parsePastedTime(text: string): { h: string; m: string } | null {
+    const trimmed = text.trim();
+    const sep = trimmed.match(/^(\d{1,2})\D+(\d{1,2})$/);
+    let hourPart: string | undefined;
+    let minutePart: string | undefined;
+    if (sep) {
+      [, hourPart, minutePart] = sep;
+    } else {
+      const raw = trimmed.match(/^(\d{3,4})$/);
+      if (raw) {
+        const digits = raw[1];
+        hourPart = digits.length === 3 ? digits.slice(0, 1) : digits.slice(0, 2);
+        minutePart = digits.length === 3 ? digits.slice(1) : digits.slice(2);
+      }
+    }
+    if (hourPart === undefined || minutePart === undefined) return null;
+    const hh = Math.min(23, Math.max(0, Number(hourPart)));
+    const mm = Math.min(59, Math.max(0, Number(minutePart)));
+    return { h: String(hh).padStart(2, "0"), m: String(mm).padStart(2, "0") };
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    const parsed = parsePastedTime(e.clipboardData.getData("text"));
+    if (!parsed) return; // không nhận diện được dạng giờ -> để trình duyệt dán số bình thường vào 1 ô
+    e.preventDefault();
+    setH(parsed.h);
+    setM(parsed.m);
+    commit(parsed.h, parsed.m);
+  }
+
   return (
     <span className="flex items-center gap-0.5 text-sm tabular-nums text-zinc-800">
       <input
@@ -92,17 +140,19 @@ function TimeHM({
         maxLength={2}
         value={h}
         onFocus={(e) => e.target.select()}
+        onPaste={handlePaste}
         onChange={(e) => {
           const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
           const clamped = digits.length === 2 && Number(digits) > 23 ? "23" : digits;
           setH(clamped);
           commit(clamped, m);
           if (clamped.length === 2) {
+            skipNextBlur.current = true;
             minuteRef.current?.focus();
             minuteRef.current?.select();
           }
         }}
-        onBlur={() => finalize(h, m)}
+        onBlur={handleBlur}
         className="w-5 border-none bg-transparent p-0 text-right focus:outline-none focus:ring-0"
       />
       <span className="text-zinc-400">:</span>
@@ -114,14 +164,18 @@ function TimeHM({
         maxLength={2}
         value={m}
         onFocus={(e) => e.target.select()}
+        onPaste={handlePaste}
         onChange={(e) => {
           const digits = e.target.value.replace(/\D/g, "").slice(0, 2);
           const clamped = digits.length === 2 && Number(digits) > 59 ? "59" : digits;
           setM(clamped);
           commit(h, clamped);
-          if (clamped.length === 2) onComplete?.();
+          if (clamped.length === 2) {
+            skipNextBlur.current = true;
+            onComplete?.();
+          }
         }}
-        onBlur={() => finalize(h, m)}
+        onBlur={handleBlur}
         className="w-5 border-none bg-transparent p-0 focus:outline-none focus:ring-0"
       />
     </span>

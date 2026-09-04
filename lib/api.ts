@@ -11,7 +11,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+// Dự án tự chứa toàn bộ API (Next.js Route Handlers) ngay trong cùng domain,
+// nên mặc định gọi tương đối (cùng origin). Có thể ghi đè bằng NEXT_PUBLIC_API_URL nếu cần.
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export type AssetKind = "image" | "demo";
 export type AssetPlatform = "fb" | "ig_threads" | "general";
