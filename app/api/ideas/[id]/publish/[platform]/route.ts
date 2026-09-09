@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
-import { createNotification } from "@/lib/server/notify";
+import { createNotification, ideaRef } from "@/lib/server/notify";
 import { publishToPlatform } from "@/lib/server/social";
 import type { Idea, SocialPlatform } from "@/lib/api";
 
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     .single();
   if (updateError || !updated) return NextResponse.json({ error: "Đăng thành công nhưng lỗi cập nhật" }, { status: 500 });
 
-  await createNotification("idea_publish", `đã đăng lên ${PLATFORM_LABEL[platform]}`, {
+  await createNotification("idea_publish", `đã đăng lên ${PLATFORM_LABEL[platform]} ý tưởng${ideaRef(updated)}`, {
     ideaId: updated.id,
     actorName: user.name,
   });

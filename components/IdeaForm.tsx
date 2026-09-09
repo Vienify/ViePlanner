@@ -21,6 +21,13 @@ import {
   uploadAssets,
 } from "@/lib/api";
 import { PlatformDemo } from "@/components/platform-previews/PlatformDemo";
+import type { Platform } from "@/components/platform-previews/shared";
+
+const CONTENT_TABS: { key: Platform; field: "detail_fb" | "detail_ig" | "detail_threads"; label: string }[] = [
+  { key: "facebook", field: "detail_fb", label: "Facebook" },
+  { key: "instagram", field: "detail_ig", label: "Instagram" },
+  { key: "threads", field: "detail_threads", label: "Threads" },
+];
 
 const TIME_FIELDS: { key: "time_fb" | "time_ig" | "time_threads"; label: string; platform: "facebook" | "instagram" | "threads" }[] = [
   { key: "time_fb", label: "Facebook", platform: "facebook" },
@@ -199,6 +206,9 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
     post_format: idea?.post_format || "image",
     content: idea?.content || "",
     detail_content: idea?.detail_content || "",
+    detail_fb: idea?.detail_fb || idea?.detail_content || "",
+    detail_ig: idea?.detail_ig || idea?.detail_content || "",
+    detail_threads: idea?.detail_threads || idea?.detail_content || "",
     asset_note: idea?.asset_note || "",
     time_fb: idea?.time_fb || "",
     time_ig: idea?.time_ig || "",
@@ -212,6 +222,7 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
   const [error, setError] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [autoSaving, setAutoSaving] = useState(false);
+  const [contentTab, setContentTab] = useState<Platform>("facebook");
 
   useEffect(() => {
     fetchCategories()
@@ -236,7 +247,7 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
     }, 800);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.detail_content, mode, savedId]);
+  }, [form.detail_fb, form.detail_ig, form.detail_threads, mode, savedId]);
 
   const set = (k: keyof IdeaInput) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -413,47 +424,86 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
           </div>
         )}
 
-        {/* Chỉ hiện khi đang sửa nội dung (Viết nội dung): 2 cột — trái viết nội dung + ảnh, phải demo */}
+        {/* Chỉ hiện khi đang sửa nội dung (Viết nội dung): 2 cột — trái viết nội dung theo từng nền tảng + ảnh, phải demo tương ứng */}
         {mode === "content" && idea && (() => {
-          const previewIdea: Idea = { ...idea, ...form, content: form.detail_content || form.content, assets };
+          const previewIdea: Idea = { ...idea, ...form, assets };
+          const activeTab = CONTENT_TABS.find((t) => t.key === contentTab)!;
           return (
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              <div>
-                <div className="mb-1 flex items-center justify-between">
-                  <label className={labelCls}>Nội dung chi tiết</label>
+            <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+              <div className="flex flex-col">
+                <div className="mb-2 flex items-center justify-between">
+                  <label className={`${labelCls} !mb-0`}>Nội dung chi tiết theo nền tảng</label>
                   {autoSaving && <span className="text-[11px] text-zinc-400">Đang tự động lưu…</span>}
                 </div>
+                <div className="mb-3 flex min-h-9 flex-wrap items-center gap-2">
+                  {CONTENT_TABS.map((t) => {
+                    const filled = Boolean(form[t.field].trim());
+                    return (
+                      <button
+                        key={t.key}
+                        type="button"
+                        onClick={() => setContentTab(t.key)}
+                        className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+                          contentTab === t.key
+                            ? "bg-zinc-900 text-white"
+                            : "border border-zinc-300 bg-white text-zinc-600 hover:bg-zinc-100"
+                        }`}
+                      >
+                        <TimePlatformIcon platform={t.key} />
+                        {t.label}
+                        {filled && <span className={`h-1.5 w-1.5 rounded-full ${contentTab === t.key ? "bg-emerald-400" : "bg-emerald-500"}`} />}
+                      </button>
+                    );
+                  })}
+                </div>
                 <textarea
-                  rows={16}
-                  placeholder="Viết caption đầy đủ khi ý tưởng được triển khai… (mẹo: chèn --- ở nơi muốn tách xuống comment cho Threads, vd: ...---Mình sẽ ưu tiên theo thứ tự này.)"
-                  value={form.detail_content}
-                  onChange={set("detail_content")}
-                  className={inputCls}
+                  key={activeTab.key}
+                  rows={12}
+                  placeholder={
+                    activeTab.key === "threads"
+                      ? "Viết caption cho Threads… (mẹo: chèn --- ở nơi muốn tách xuống comment, vd: ...---Mình sẽ ưu tiên theo thứ tự này.)"
+                      : `Viết caption đầy đủ cho ${activeTab.label}…`
+                  }
+                  value={form[activeTab.field]}
+                  onChange={set(activeTab.field)}
+                  className={`${inputCls} min-h-[18rem] flex-1 resize-none`}
                 />
 
                 <div className="mt-4 space-y-3">
                   <p className="flex items-center gap-1.5 text-xs font-semibold text-zinc-500">
                     <Paperclip className="h-3.5 w-3.5" />
-                    Ảnh đăng theo từng nền tảng
+                    Ảnh đăng cho {activeTab.label}
                   </p>
 
-                  <AssetUploadZone
-                    label="Ảnh Facebook"
-                    // hint="FB linh hoạt tỉ lệ (ngang 1.91:1 hoặc vuông), không dùng chung kích thước với IG/Threads"
-                    accent="bg-zinc-900 hover:bg-zinc-700"
-                    assets={assets.filter((a) => a.kind === "image" && a.platform === "fb")}
-                    onUpload={(files) => handleUpload(files, "image", "fb")}
-                    onDelete={handleDeleteAsset}
-                  />
+                  {contentTab === "facebook" && (
+                    <AssetUploadZone
+                      label="Ảnh Facebook"
+                      accent="bg-zinc-900 hover:bg-zinc-700"
+                      assets={assets.filter((a) => a.kind === "image" && a.platform === "fb")}
+                      onUpload={(files) => handleUpload(files, "image", "fb")}
+                      onDelete={handleDeleteAsset}
+                    />
+                  )}
 
-                  <AssetUploadZone
-                    label="Ảnh Instagram & Threads"
-                    // hint="IG và Threads dùng chung kích thước (khuyên dùng vuông 1:1 hoặc 4:5)"
-                    accent="bg-zinc-700 hover:bg-zinc-600"
-                    assets={assets.filter((a) => a.kind === "image" && a.platform === "ig_threads")}
-                    onUpload={(files) => handleUpload(files, "image", "ig_threads")}
-                    onDelete={handleDeleteAsset}
-                  />
+                  {contentTab === "instagram" && (
+                    <AssetUploadZone
+                      label="Ảnh Instagram"
+                      accent="bg-zinc-700 hover:bg-zinc-600"
+                      assets={assets.filter((a) => a.kind === "image" && (a.platform === "ig" || a.platform === "ig_threads"))}
+                      onUpload={(files) => handleUpload(files, "image", "ig")}
+                      onDelete={handleDeleteAsset}
+                    />
+                  )}
+
+                  {contentTab === "threads" && (
+                    <AssetUploadZone
+                      label="Ảnh Threads"
+                      accent="bg-zinc-700 hover:bg-zinc-600"
+                      assets={assets.filter((a) => a.kind === "image" && (a.platform === "threads" || a.platform === "ig_threads"))}
+                      onUpload={(files) => handleUpload(files, "image", "threads")}
+                      onDelete={handleDeleteAsset}
+                    />
+                  )}
 
                   {uploading && <span className="text-xs text-zinc-500">Đang tải lên…</span>}
                 </div>
@@ -464,7 +514,7 @@ export default function IdeaForm({ idea, defaultDate, initialMode, onClose, onSa
                   <MonitorPlay className="h-3.5 w-3.5" />
                   Demo bài đăng trên từng nền tảng
                 </p>
-                <PlatformDemo idea={previewIdea} assets={assets} />
+                <PlatformDemo idea={previewIdea} assets={assets} platform={contentTab} onPlatformChange={setContentTab} />
               </div>
             </div>
           );

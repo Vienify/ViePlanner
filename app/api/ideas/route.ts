@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
-import { createNotification } from "@/lib/server/notify";
+import { createNotification, ideaRef } from "@/lib/server/notify";
 import type { IdeaInput } from "@/lib/api";
 
 export async function GET(req: NextRequest) {
@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
       post_format: body.post_format ?? "image",
       content: body.content ?? "",
       detail_content: body.detail_content ?? "",
+      detail_fb: body.detail_fb ?? "",
+      detail_ig: body.detail_ig ?? "",
+      detail_threads: body.detail_threads ?? "",
       asset_note: body.asset_note ?? "",
       time_fb: body.time_fb ?? "",
       time_ig: body.time_ig ?? "",
@@ -53,7 +56,7 @@ export async function POST(req: NextRequest) {
 
   if (error || !data) return NextResponse.json({ error: error?.message || "Không tạo được ý tưởng" }, { status: 500 });
 
-  await createNotification("idea_create", "đã tạo ý tưởng mới", { ideaId: data.id, actorName: user.name });
+  await createNotification("idea_create", `đã tạo ý tưởng mới${ideaRef(data)}`, { ideaId: data.id, actorName: user.name });
 
   return NextResponse.json(data);
 }

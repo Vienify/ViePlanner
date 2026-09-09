@@ -57,8 +57,8 @@ function PlatformIcon({ platform }: { platform: SocialPlatform }) {
 export default function PreviewModal({ idea, onClose, onEdit, onUpdated }: Props) {
   const StatusIcon = STATUS_ICONS[idea.status];
   const FormatIcon = POST_FORMAT_ICONS[idea.post_format];
-  const hasContent = Boolean(idea.detail_content);
-  const demoIdea: Idea = { ...idea, content: idea.detail_content || idea.content };
+  const hasContent = Boolean(idea.detail_fb || idea.detail_ig || idea.detail_threads || idea.detail_content);
+  const demoIdea: Idea = idea;
 
   const [socialStatus, setSocialStatus] = useState<SocialStatus | null>(null);
   const [publishing, setPublishing] = useState<SocialPlatform | null>(null);
@@ -68,10 +68,7 @@ export default function PreviewModal({ idea, onClose, onEdit, onUpdated }: Props
   const [showPublish, setShowPublish] = useState(false);
 
   const assets = idea.assets || [];
-  const hasImages =
-    assets.some((a) => a.kind === "image" && a.platform === "fb") ||
-    assets.some((a) => a.kind === "image" && a.platform === "ig_threads") ||
-    assets.some((a) => a.kind === "demo");
+  const hasImages = assets.some((a) => a.kind === "image" || a.kind === "demo");
   const readyToSchedule = hasContent && hasImages;
   const isReady = idea.status !== "idea";
 

@@ -29,6 +29,15 @@ function timeAgoVN(iso: string): string {
   return `${day} ngày trước`;
 }
 
+function exactTimeVN(iso: string): string {
+  const d = new Date(iso.replace(" ", "T"));
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${hh}:${mi} ngày ${dd}/${mm}/${d.getFullYear()}`;
+}
+
 function dayKey(iso: string): string {
   const d = new Date(iso.replace(" ", "T"));
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
@@ -195,7 +204,7 @@ export default function NotificationBell({
                         <span className="min-w-0 flex-1">
                           <NotificationText n={n} />
                           <span className="mt-0.5 block text-xs text-zinc-400">
-                            {timeAgoVN(n.created_at)}
+                            {exactTimeVN(n.created_at)} · {timeAgoVN(n.created_at)}
                           </span>
                         </span>
                       </button>
@@ -228,7 +237,9 @@ export default function NotificationBell({
                 </span>
                 <span className="min-w-0 flex-1">
                   <NotificationText n={n} />
-                  <span className="mt-0.5 block text-xs text-zinc-400">{timeAgoVN(n.created_at)}</span>
+                  <span className="mt-0.5 block text-xs text-zinc-400">
+                    {exactTimeVN(n.created_at)} · {timeAgoVN(n.created_at)}
+                  </span>
                 </span>
                 <button
                   type="button"

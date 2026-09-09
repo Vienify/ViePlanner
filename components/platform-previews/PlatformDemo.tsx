@@ -18,6 +18,8 @@ export function PlatformDemo({
   marking,
   onMarkReady,
   publishSlot,
+  platform: controlledPlatform,
+  onPlatformChange,
 }: {
   idea: Idea;
   assets: Asset[];
@@ -26,8 +28,16 @@ export function PlatformDemo({
   marking?: boolean;
   onMarkReady?: () => void;
   publishSlot?: ReactNode;
+  /** Nếu truyền vào, tab nền tảng được điều khiển từ ngoài (ví dụ đồng bộ với tab nhập nội dung). */
+  platform?: Platform;
+  onPlatformChange?: (p: Platform) => void;
 }) {
-  const [platform, setPlatform] = useState<Platform>("facebook");
+  const [internalPlatform, setInternalPlatform] = useState<Platform>("facebook");
+  const platform = controlledPlatform ?? internalPlatform;
+  const setPlatform = (p: Platform) => {
+    if (onPlatformChange) onPlatformChange(p);
+    else setInternalPlatform(p);
+  };
   const [theme, setTheme] = useState<Theme>("light");
   const [accounts, setAccounts] = useState<SocialAccounts | null>(null);
 
@@ -40,9 +50,15 @@ export function PlatformDemo({
 
   const demos = assets.filter((a) => a.kind === "demo");
   const fbImages = assets.filter((a) => a.kind === "image" && a.platform === "fb");
-  const igThreadsImages = assets.filter((a) => a.kind === "image" && a.platform === "ig_threads");
+  const igImages = assets.filter((a) => a.kind === "image" && (a.platform === "ig" || a.platform === "ig_threads"));
+  const threadsImages = assets.filter((a) => a.kind === "image" && (a.platform === "threads" || a.platform === "ig_threads"));
   const fbMedia = fbImages.length > 0 ? fbImages : demos;
-  const igThreadsMedia = igThreadsImages.length > 0 ? igThreadsImages : demos;
+  const igMedia = igImages.length > 0 ? igImages : demos;
+  const threadsMedia = threadsImages.length > 0 ? threadsImages : demos;
+  // Mỗi nền tảng dùng nội dung riêng; fallback về nội dung chung (legacy) rồi ý tưởng.
+  const fbIdea: Idea = { ...idea, content: idea.detail_fb || idea.detail_content || idea.content };
+  const igIdea: Idea = { ...idea, content: idea.detail_ig || idea.detail_content || idea.content };
+  const threadsIdea: Idea = { ...idea, content: idea.detail_threads || idea.detail_content || idea.content };
   const tabs: { key: Platform; label: string }[] = [
     { key: "facebook", label: "Facebook" },
     { key: "instagram", label: "Instagram" },
@@ -98,13 +114,13 @@ export function PlatformDemo({
       </div>
       <div className={`grid grid-cols-1 rounded-2xl p-4 sm:p-6 ${theme === "dark" ? "bg-zinc-950" : "bg-zinc-200/60"}`}>
         <div className={`col-start-1 row-start-1 ${platform === "facebook" ? "visible" : "invisible pointer-events-none"}`}>
-          <FacebookPreview idea={idea} media={fbMedia} theme={theme} account={accounts?.facebook} />
+          <FacebookPreview idea={fbIdea} media={fbMedia} theme={theme} account={accounts?.facebook} />
         </div>
         <div className={`col-start-1 row-start-1 ${platform === "instagram" ? "visible" : "invisible pointer-events-none"}`}>
-          <InstagramPreview idea={idea} media={igThreadsMedia} theme={theme} account={accounts?.instagram} />
+          <InstagramPreview idea={igIdea} media={igMedia} theme={theme} account={accounts?.instagram} />
         </div>
         <div className={`col-start-1 row-start-1 ${platform === "threads" ? "visible" : "invisible pointer-events-none"}`}>
-          <ThreadsPreview idea={idea} media={igThreadsMedia} theme={theme} account={accounts?.threads} />
+          <ThreadsPreview idea={threadsIdea} media={threadsMedia} theme={theme} account={accounts?.threads} />
         </div>
       </div>
     </div>

@@ -13,9 +13,9 @@ interface Props {
 const DOW_HEADERS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 
 const CALENDAR_STATUS_BORDER: Record<IdeaStatus, string> = {
-  idea: "border-2 border-red-500 bg-white text-zinc-700",
-  scheduled: "border-2 border-amber-500 bg-white text-zinc-700",
-  posted: "border-2 border-emerald-500 bg-white text-zinc-700",
+  idea: "border border-red-300 bg-red-200 text-red-900",
+  scheduled: "border border-amber-300 bg-amber-200 text-amber-900",
+  posted: "border border-emerald-300 bg-emerald-200 text-emerald-900",
 };
 
 export default function CalendarView({ month, ideas, onSelect, onAddDate }: Props) {
@@ -80,7 +80,7 @@ export default function CalendarView({ month, ideas, onSelect, onAddDate }: Prop
                   title={idea.content}
                 >
                   <span className="font-bold">{idea.category || "Chưa phân mục"}</span>
-                  <div className="truncate text-zinc-600">{idea.content}</div>
+                  <div className="truncate opacity-80">{idea.content}</div>
                 </button>
               ))}
             </div>

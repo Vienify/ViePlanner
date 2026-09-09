@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
-import { createNotification } from "@/lib/server/notify";
+import { createNotification, ideaRef } from "@/lib/server/notify";
 import type { IdeaInput } from "@/lib/api";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -34,6 +34,9 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     "post_format",
     "content",
     "detail_content",
+    "detail_fb",
+    "detail_ig",
+    "detail_threads",
     "asset_note",
     "time_fb",
     "time_ig",
@@ -54,9 +57,9 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
 
   if (!silent) {
     if (before && before.status !== "scheduled" && data.status === "scheduled") {
-      await createNotification("idea_ready", "đã đánh dấu sẵn sàng đăng", { ideaId: data.id, actorName: user.name });
+      await createNotification("idea_ready", `đã đánh dấu sẵn sàng đăng ý tưởng${ideaRef(data)}`, { ideaId: data.id, actorName: user.name });
     } else {
-      await createNotification("idea_update", "đã cập nhật ý tưởng", { ideaId: data.id, actorName: user.name });
+      await createNotification("idea_update", `đã cập nhật ý tưởng${ideaRef(data)}`, { ideaId: data.id, actorName: user.name });
     }
   }
 
@@ -68,10 +71,11 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   if (!user) return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
 
   const { id } = await ctx.params;
+  const { data: deleted } = await db.from("ideas").select("id, content, category, post_date").eq("id", id).single();
   const { error } = await db.from("ideas").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await createNotification("idea_delete", "đã xoá ý tưởng", { actorName: user.name });
+  await createNotification("idea_delete", `đã xoá ý tưởng${deleted ? ideaRef(deleted) : ""}`, { actorName: user.name });
 
   return NextResponse.json({ ok: true });
 }

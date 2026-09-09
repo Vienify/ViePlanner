@@ -16,7 +16,8 @@ import {
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
 export type AssetKind = "image" | "demo";
-export type AssetPlatform = "fb" | "ig_threads" | "general";
+// "ig_threads" là giá trị cũ (ảnh dùng chung IG + Threads) — giữ để tương thích dữ liệu đã có.
+export type AssetPlatform = "fb" | "ig" | "threads" | "ig_threads" | "general";
 export type IdeaStatus = "idea" | "scheduled" | "posted";
 export type PostFormat = "image" | "carousel" | "video" | "reel" | "story_image" | "story_video";
 
@@ -35,7 +36,10 @@ export interface Idea {
   category: string;
   post_format: PostFormat;
   content: string;
-  detail_content: string;
+  detail_content: string; // nội dung chi tiết chung (legacy — dùng làm fallback)
+  detail_fb: string;
+  detail_ig: string;
+  detail_threads: string;
   asset_note: string;
   time_fb: string;
   time_ig: string;
