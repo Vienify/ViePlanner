@@ -216,7 +216,7 @@ export async function publishToInstagram(idea: Idea): Promise<string> {
       caption,
       access_token: IG_ACCESS_TOKEN,
     });
-    return publishIgContainer(String(container.id));
+    return publishIgContainer(String(container.id), true);
   }
 
   const images = assetsFor(idea, "ig");
@@ -249,7 +249,22 @@ export async function publishToInstagram(idea: Idea): Promise<string> {
   return publishIgContainer(String(container.id));
 }
 
-async function publishIgContainer(creationId: string): Promise<string> {
+async function checkIgContainerStatus(creationId: string): Promise<string> {
+  const info = await graphGet(
+    `${FB_GRAPH_URL}/${creationId}?fields=status_code&access_token=${IG_ACCESS_TOKEN}`
+  );
+  return (info.status_code as string) || "ERROR";
+}
+
+async function publishIgContainer(creationId: string, isVideo = false): Promise<string> {
+  if (isVideo) {
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const status = await checkIgContainerStatus(creationId);
+      if (status === "FINISHED") break;
+      if (status === "ERROR") throw new Error("Lỗi xử lý video từ Instagram");
+    }
+  }
   const res = await graphPost(`${FB_GRAPH_URL}/${IG_BUSINESS_ACCOUNT_ID}/media_publish`, {
     creation_id: creationId,
     access_token: IG_ACCESS_TOKEN!,
@@ -306,6 +321,18 @@ export async function publishToThreads(idea: Idea): Promise<string> {
       access_token: THREADS_ACCESS_TOKEN,
     });
     creationId = String(container.id);
+  }
+
+  if (video || images.length > 1) {
+    for (let i = 0; i < 15; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const info = await graphGet(
+        `${THREADS_GRAPH_URL}/${creationId}?fields=status&access_token=${THREADS_ACCESS_TOKEN}`
+      );
+      const status = info.status as string;
+      if (status === "FINISHED") break;
+      if (status === "ERROR") throw new Error("Lỗi xử lý video/carousel từ Threads");
+    }
   }
 
   const res = await graphPost(`${THREADS_GRAPH_URL}/${THREADS_USER_ID}/threads_publish`, {
